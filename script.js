@@ -19,34 +19,44 @@ let height = canvas.offsetHeight;
 const dots = [];
 
 let DOTS_AMOUNT = 1000;
-let DOT_RADIUS = 10;
 let PERSPECTIVE = width * 0.8; // The field of view of our 3D scene
 let PROJECTION_CENTER_X = width / 2; // x center of the canvas
 let PROJECTION_CENTER_Y = height / 2; // y center of the canvas
 
+const DOT_RADIUS = 10;
+let GLOBE_RADIUS = width / 3; // Radius of the globe
+
 class Dot {
      constructor() {
-          this.x = (Math.random() - 0.5) * width;
-          this.y = (Math.random() - 0.5) * height;
-          this.z = Math.random() * width;
-          this.radius = 10;
+          this.theta = Math.random() * 2 * Math.PI; // Random value between [0, 2Pi]
+          this.phi = Math.acos(Math.random() * 2 - 1); // Random value between [0, Pi]
 
+          // The x, y, z coordinates will be calculated in the project() function
+          this.x = 0;
+          this.y = 0;
+          this.z = 0;
+
+          // The projected coordinates will be calculated in the project() function
           this.xProjected = 0; // x coordinate on the 2D plane
           this.yProjected = 0; // y coordinate on the 2D plane
           this.scaleProjected = 0; // Scale of the element on the 2D plane (further = smaller)
 
-          gsap.to(this, Math.random() * 10 + 15, {
-               z: width,
+          gsap.to(this, 20 + Math.random() * 10, {
+               theta: this.theta + Math.PI * 2,
                repeat: -1,
-               yoyo: true,
-               ease: Power2.easeOut,
-               yoyoEase: true,
-               delay: Math.random() * -25,
+               ease: Power0.easeNone,
           });
      }
 
      // Project our element from the 3D plane to the 2D plane
      project() {
+          // Calculate the x, y, z coordinates in the 3d plane
+          this.x = GLOBE_RADIUS * Math.sin(this.phi) * Math.cos(this.theta);
+          this.y = GLOBE_RADIUS * Math.cos(this.phi);
+          this.z =
+               GLOBE_RADIUS * Math.sin(this.phi) * Math.sin(this.theta) +
+               GLOBE_RADIUS;
+
           // The scaleProjected will store the scale of the element based on its distance from the 'camera'
           this.scaleProjected = PERSPECTIVE / (PERSPECTIVE + this.z);
           // The xProjected is the x position on the 2D plane
@@ -61,13 +71,21 @@ class Dot {
           this.project();
           // Define opacity based on its distance
           ctx.globalAlpha = Math.abs(1 - this.z / width);
-          // Draw a rectangle based on the projected coordinates and scale
-          ctx.fillRect(
-               this.xProjected - this.radius,
-               this.yProjected - this.radius,
-               this.radius * 2 * this.scaleProjected,
-               this.radius * 2 * this.scaleProjected
+
+          // Draw a circle
+          ctx.beginPath();
+
+          // The arc function takes 5 parameters (x,y,radius,angle start,angle end)
+          ctx.arc(
+               this.xProjected,
+               this.yProjected,
+               DOT_RADIUS * this.scaleProjected,
+               0,
+               Math.PI * 2
           );
+
+          // Fill the circle in black
+          ctx.fill();
      }
 }
 
@@ -86,6 +104,16 @@ function render() {
      ctx.clearRect(0, 0, width, height);
 
      for (var i = 0; i < dots.length; i++) {
+          dots[i].project();
+     }
+
+     // Sort dots array based on their projected size
+     dots.sort((dot1, dot2) => {
+          return dot1.sizeProjection - dot2.sizeProjection;
+     });
+
+     // Loop through the dots array and draw every dot
+     for (let i = 0; i < dots.length; i++) {
           dots[i].draw();
      }
 
